@@ -4,7 +4,7 @@ import urllib.request
 import urllib.error
 import re
 
-FASTAPI_URL = os.environ.get("FASTAPI_URL", "http://localhost:8000")
+FASTAPI_URL = "https://e883-104-196-235-104.ngrok-free.app"
 
 def extract_region_from_arn(arn):
     match = re.search(r'arn:aws:lambda:([^:]+):', arn)
