@@ -4,8 +4,7 @@ import urllib.request
 import urllib.error
 import re
 
-# エンドポイントのベースURL（環境変数から取得、末尾のスラッシュは除外）
-API_BASE_URL = os.environ.get("FASTAPI_ENDPOINT", "https://your-ngrok-url.ngrok-free.app").rstrip('/')
+FASTAPI = os.environ.get("FASTAPI", "https://your-ngrok-url.ngrok-free.app").rstrip('/')
 
 def extract_region_from_arn(arn):
     match = re.search(r'arn:aws:lambda:([^:]+):', arn)
@@ -25,6 +24,7 @@ def lambda_handler(event, context):
         payload = {
             "prompt": message,
             "max_new_tokens": 512,
+            "stopSequences": [],
             "temperature": 0.7,
             "top_p": 0.9,
             "do_sample": True
@@ -44,6 +44,7 @@ def lambda_handler(event, context):
         print("API response:", response_json)
 
         assistant_response = response_json.get("generated_text", "")
+        response_time = response_json.get("response_time", 0)
 
         return {
             "statusCode": 200,
@@ -55,7 +56,8 @@ def lambda_handler(event, context):
             },
             "body": json.dumps({
                 "success": True,
-                "response": assistant_response
+                "response": assistant_response,
+                "responseTime": response_time
             })
         }
 
