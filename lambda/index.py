@@ -1,70 +1,50 @@
-# lambda/index.py
 import json
 import os
-import boto3
-import re  # 正規表現モジュールをインポート
-from botocore.exceptions import ClientError
+import urllib.request
+import urllib.error
+import re
 
+# エンドポイントのベースURL（環境変数から取得、末尾のスラッシュは除外）
+API_BASE_URL = os.environ.get("FASTAPI_ENDPOINT", "https://your-ngrok-url.ngrok-free.app").rstrip('/')
 
-# Lambda コンテキストからリージョンを抽出する関数
 def extract_region_from_arn(arn):
-    # ARN 形式: arn:aws:lambda:region:account-id:function:function-name
-    match = re.search('arn:aws:lambda:([^:]+):', arn)
+    match = re.search(r'arn:aws:lambda:([^:]+):', arn)
     if match:
         return match.group(1)
-    return "us-east-1"  # デフォルト値
-
+    return "us-east-1"
 
 def lambda_handler(event, context):
     try:
-        # Lambda コンテキストの情報をログ出力（認証済みユーザー情報の取得など）
         print("Received event:", json.dumps(event))
-
-        user_info = None
-        if 'requestContext' in event and 'authorizer' in event['requestContext']:
-            user_info = event['requestContext']['authorizer']['claims']
-            print(f"Authenticated user: {user_info.get('email') or user_info.get('cognito:username')}")
         
         # リクエストボディの解析
         body = json.loads(event['body'])
         message = body['message']
         
-        print("Processing message:", message)
-        
-        FASTAPI_URL = os.environ.get("FASTAPI_URL", "http://example.com/numbertheory")
-        print("Calling FastAPI at:", FASTAPI_URL)
-        
-        # 受け取った message をそのまま prompt として利用
-        request_payload = {
-            "prompt": message
+        # FastAPI に送るペイロード
+        payload = {
+            "prompt": message,
+            "max_new_tokens": 512,
+            "temperature": 0.7,
+            "top_p": 0.9,
+            "do_sample": True
         }
-        # JSONエンコードしてbytesに変換
-        data = json.dumps(request_payload).encode("utf-8")
-        headers = {"Content-Type": "application/json"}
         
-        req = urllib.request.Request(url=FASTAPI_URL, data=data, headers=headers)
+        data = json.dumps(payload).encode('utf-8')
+        headers = {'Content-Type': 'application/json'}
+        
+        # POST リクエストを送信
+        url = f"{API_BASE_URL}/generate"
+        req = urllib.request.Request(url, data=data, headers=headers)
+        
         with urllib.request.urlopen(req) as response:
-            # APIからのレスポンスをデコードし、JSONとしてパース
-            response_body = json.loads(response.read().decode('utf-8'))
+            response_body = response.read()
+            response_json = json.loads(response_body)
         
-        print("FastAPI response:", json.dumps(response_body, ensure_ascii=False))
-        
-        assistant_response = response_body.get("result")
-        if not assistant_response:
-            raise Exception("No result returned from FastAPI")
-        
-        # 必要に応じて、会話履歴の保持処理
-        conversation_history = body.get('conversationHistory', [])
-        conversation_history.append({
-            "role": "user",
-            "content": message
-        })
-        conversation_history.append({
-            "role": "assistant",
-            "content": assistant_response
-        })
-        
-        # 成功レスポンスを返却
+        print("API response:", response_json)
+
+        assistant_response = response_json.get("generated_text", "")
+
         return {
             "statusCode": 200,
             "headers": {
@@ -75,24 +55,29 @@ def lambda_handler(event, context):
             },
             "body": json.dumps({
                 "success": True,
-                "response": assistant_response,
-                "conversationHistory": conversation_history
+                "response": assistant_response
             })
         }
-        
-    except Exception as error:
-        print("Error:", str(error))
-        
-        return {
-            "statusCode": 500,
-            "headers": {
-                "Content-Type": "application/json",
-                "Access-Control-Allow-Origin": "*",
-                "Access-Control-Allow-Headers": "Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token",
-                "Access-Control-Allow-Methods": "OPTIONS,POST"
-            },
-            "body": json.dumps({
-                "success": False,
-                "error": str(error)
-            })
-        }
+
+    except urllib.error.HTTPError as e:
+        error_message = f"HTTPError: {e.code} - {e.reason}"
+    except urllib.error.URLError as e:
+        error_message = f"URLError: {e.reason}"
+    except Exception as e:
+        error_message = f"Exception: {str(e)}"
+
+    print("Error:", error_message)
+
+    return {
+        "statusCode": 500,
+        "headers": {
+            "Content-Type": "application/json",
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Headers": "Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token",
+            "Access-Control-Allow-Methods": "OPTIONS,POST"
+        },
+        "body": json.dumps({
+            "success": False,
+            "error": error_message
+        })
+    }
