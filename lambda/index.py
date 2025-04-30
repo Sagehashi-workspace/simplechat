@@ -19,8 +19,7 @@ def lambda_handler(event, context):
     try:
         # Lambda コンテキストの情報をログ出力（認証済みユーザー情報の取得など）
         print("Received event:", json.dumps(event))
-        
-        # Cognito認証済みユーザー情報を取得（あればログに出力）
+
         user_info = None
         if 'requestContext' in event and 'authorizer' in event['requestContext']:
             user_info = event['requestContext']['authorizer']['claims']
@@ -32,12 +31,10 @@ def lambda_handler(event, context):
         
         print("Processing message:", message)
         
-        # ★ここでGoogle Colab上のFastAPIエンドポイントに対して問い合わせを行う★
-        # FastAPI のエンドポイント URL を環境変数から取得（例: "http://<colabのURL>/numbertheory"）
         FASTAPI_URL = os.environ.get("FASTAPI_URL", "http://example.com/numbertheory")
         print("Calling FastAPI at:", FASTAPI_URL)
         
-        # 受け取った message をそのまま prompt として利用（シンプルなデバッグ用実装）
+        # 受け取った message をそのまま prompt として利用
         request_payload = {
             "prompt": message
         }
@@ -52,12 +49,11 @@ def lambda_handler(event, context):
         
         print("FastAPI response:", json.dumps(response_body, ensure_ascii=False))
         
-        # FastAPI のレスポンス例として、"result" キーに返答内容が含まれている前提とする
         assistant_response = response_body.get("result")
         if not assistant_response:
             raise Exception("No result returned from FastAPI")
         
-        # 必要に応じて、会話履歴の保持処理（ここでは受け取ったmessageとAPIの応答をそのまま追加）
+        # 必要に応じて、会話履歴の保持処理
         conversation_history = body.get('conversationHistory', [])
         conversation_history.append({
             "role": "user",
