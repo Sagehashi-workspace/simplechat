@@ -19,24 +19,3 @@ new BedrockChatbotStack(app, 'BedrockChatbotStack', {
 // タグはスタックレベルで追加
 cdk.Tags.of(app).add('Project', 'BedrockChatbot');
 cdk.Tags.of(app).add('Environment', 'Dev');
-
-const fastApiUrl = this.node.tryGetContext('fastapiUrl');
-if (!fastApiUrl) {
-  throw new Error(
-    'ERROR'
-  );
-}
-
-// Lambda function
-const chatFunction = new lambda.Function(this, 'ChatFunction', {
-  runtime: lambda.Runtime.PYTHON_3_10,
-  handler: 'index.lambda_handler',
-  code: lambda.Code.fromAsset(path.join(__dirname, '../lambda')),
-  timeout: cdk.Duration.seconds(30),
-  memorySize: 128,
-  role: lambdaRole,
-  environment: {
-    MODEL_ID: modelId,
-    FASTAPI_URL: fastApiUrl,
-  },
-});
