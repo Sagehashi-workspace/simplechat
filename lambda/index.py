@@ -4,7 +4,7 @@ import urllib.request
 import urllib.error
 import re
 
-FASTAPI = os.environ.get("FASTAPI", "http://localhost:8000")
+FASTAPI_URL = os.environ.get("FASTAPI_URL", "http://localhost:8000")
 
 def extract_region_from_arn(arn):
     match = re.search(r'arn:aws:lambda:([^:]+):', arn)
@@ -34,7 +34,7 @@ def lambda_handler(event, context):
         headers = {'Content-Type': 'application/json'}
         
         # POST リクエストを送信
-        url = f"{API_BASE_URL}/generate"
+        url = f"{FASTAPI_URL}/generate"
         req = urllib.request.Request(url, data=data, headers=headers)
         
         with urllib.request.urlopen(req) as response:
